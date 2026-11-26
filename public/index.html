@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Своя игра — Онлайн</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --gold:#ffd700; --bg:#05081a; --card:rgba(13,27,76,0.85); --green:#4ade80; --red:#f87171; }
+  body { font-family:'Montserrat',sans-serif; background:radial-gradient(circle at 50% -10%,#1a2a6c 0%,#0b1026 45%,#05081a 100%); min-height:100vh; color:#fff; }
+  .app { max-width:1100px; margin:0 auto; padding:20px; }
+  .screen { display:none; }
+  .screen.active { display:block; animation:fade .35s ease; }
+  @keyframes fade { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  h1 { font-size:clamp(1.8rem,5vw,3rem); font-weight:900; text-align:center; background:linear-gradient(135deg,#fff,#ffd700); -webkit-background-clip:text; background-clip:text; color:transparent; margin:20px 0 10px; }
+  .sub { text-align:center; color:#9db2e0; margin-bottom:30px; }
+  .card { background:var(--card); border:1px solid rgba(255,215,0,0.25); border-radius:18px; padding:28px; max-width:520px; margin:0 auto 20px; }
+  .card h3 { color:var(--gold); margin-bottom:16px; font-size:1rem; letter-spacing:1px; }
+  input, select { width:100%; padding:14px 16px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:#fff; font-family:inherit; font-size:1rem; margin-bottom:14px; }
+  input:focus { outline:none; border-color:var(--gold); }
+  .btn { padding:14px 28px; border:none; border-radius:11px; font-family:inherit; font-weight:700; font-size:1rem; cursor:pointer; transition:.2s; }
+  .btn-gold { background:linear-gradient(135deg,#ffd700,#e6a700); color:#1a1a1a; }
+  .btn-gold:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(255,215,0,.35); }
+  .btn-blue { background:linear-gradient(135deg,#4f74f0,#2440a8); color:#fff; }
+  .btn-row { display:flex; gap:12px; flex-wrap:wrap; }
+  .room-code { font-size:2.2rem; font-weight:900; color:var(--gold); letter-spacing:6px; text-align:center; margin:12px 0; }
+  .players-list { display:flex; flex-direction:column; gap:8px; margin:16px 0; }
+  .player-item { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:12px 16px; border-radius:10px; }
+  .player-score { color:var(--gold); font-weight:800; font-size:1.2rem; }
+  .question-box { background:var(--card); border:2px solid var(--gold); border-radius:20px; padding:36px; text-align:center; max-width:720px; margin:30px auto; }
+  .q-text { font-size:1.4rem; line-height:1.5; margin:20px 0; font-weight:600; }
+  .q-meta { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .badge { background:rgba(255,215,0,0.12); border:1px solid rgba(255,215,0,0.4); color:var(--gold); padding:5px 14px; border-radius:50px; font-size:.8rem; font-weight:700; }
+  .answer-input { width:100%; padding:16px; background:rgba(255,255,255,0.08); border:2px solid rgba(255,215,0,0.4); border-radius:12px; color:#fff; font-size:1.1rem; text-align:center; margin:16px 0; }
+  .answer-input:focus { outline:none; border-color:var(--gold); }
+  .results-table { width:100%; margin:20px 0; }
+  .result-row { display:flex; justify-content:space-between; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.08); }
+  .result-row.correct { color:var(--green); }
+  .result-row.wrong { color:var(--red); }
+  .status-bar { text-align:center; color:#9db2e0; margin:10px 0; }
+  .hidden { display:none !important; }
+  .file-input { display:none; }
+  .file-label { display:block; padding:12px; border:2px dashed rgba(255,215,0,0.4); border-radius:10px; text-align:center; cursor:pointer; color:var(--gold); margin-bottom:14px; }
+  .file-label:hover { background:rgba(255,215,0,0.08); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ЭКРАН 1: ВХОД -->
+  <section class="screen active" id="screenEntry">
+    <h1>СВОЯ ИГРА</h1>
+    <p class="sub">Онлайн · На скорость · Свои паки</p>
+    <div class="card">
+      <h3>Ваше имя</h3>
+      <input id="playerName" placeholder="Введите имя" maxlength="16" value="Игрок">
+      <div class="btn-row">
+        <button class="btn btn-gold" id="btnCreate">Создать комнату</button>
+        <button class="btn btn-blue" id="btnJoinShow">Войти по коду</button>
+      </div>
+      <div id="joinBlock" class="hidden" style="margin-top:16px;">
+        <input id="roomCodeInput" placeholder="Код комнаты (6 символов)" maxlength="6" style="text-transform:uppercase; text-align:center; font-size:1.3rem; letter-spacing:3px;">
+        <button class="btn btn-gold" id="btnJoin" style="width:100%;">Войти</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 2: ЛОББИ -->
+  <section class="screen" id="screenLobby">
+    <h1>ЛОББИ</h1>
+    <div class="card">
+      <div class="room-code" id="lobbyRoomCode">------</div>
+      <p style="text-align:center;color:#9db2e0;margin-bottom:16px;">Поделитесь этим кодом с друзьями</p>
+      <h3>Игроки (<span id="playerCount">0</span>)</h3>
+      <div class="players-list" id="lobbyPlayers"></div>
+      <div id="hostControls">
+        <h3>Количество игроков</h3>
+        <select id="maxPlayersSelect">
+          <option value="2">2 игрока</option>
+          <option value="3">3 игрока</option>
+          <option value="4" selected>4 игрока</option>
+        </select>
+        <h3>Пак вопросов</h3>
+        <label class="file-label" for="packFile">📁 Загрузить JSON-пак</label>
+        <input type="file" id="packFile" accept=".json" class="file-input">
+        <p id="packStatus" style="color:#9db2e0;font-size:.9rem;margin-bottom:14px;">Пак не загружен</p>
+        <p style="color:#9db2e0;font-size:.8rem;margin-bottom:14px;">
+          Или загрузите с URL: <input id="packUrl" placeholder="https://..." style="margin-top:6px;">
+          <button class="btn btn-blue" id="btnLoadUrl" style="width:100%;margin-top:6px;padding:10px;">Загрузить с URL</button>
+        </p>
+        <button class="btn btn-gold" id="btnStart" style="width:100%;margin-top:8px;">🚀 Начать игру</button>
+      </div>
+      <p id="waitingMsg" class="hidden" style="text-align:center;color:#9db2e0;margin-top:16px;">Ожидание хоста...</p>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 3: ИГРА -->
+  <section class="screen" id="screenGame">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h1 style="font-size:1.3rem;margin:0;">Раунд <span id="gameRound">1</span></h1>
+      <div class="badge" id="gamePrice">0 очков</div>
+    </div>
+    <div class="question-box">
+      <div class="q-meta">
+        <span class="badge" id="gameCategory">—</span>
+      </div>
+      <div class="q-text" id="gameQuestion">Ожидание вопроса...</div>
+      <input class="answer-input" id="gameAnswer" placeholder="Введите ответ..." autocomplete="off">
+      <button class="btn btn-gold" id="btnSubmitAnswer" style="width:100%;">Ответить</button>
+      <p class="status-bar" id="answerStatus"></p>
+    </div>
+    <div class="card">
+      <h3>Счёт</h3>
+      <div class="players-list" id="gamePlayers"></div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 4: РЕЗУЛЬТАТЫ ВОПРОСА -->
+  <section class="screen" id="screenResults">
+    <h1>РЕЗУЛЬТАТЫ</h1>
+    <div class="card">
+      <p style="text-align:center;margin-bottom:16px;">Правильный ответ: <strong id="correctAnswerText" style="color:var(--green);"></strong></p>
+      <div class="results-table" id="resultsTable"></div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 5: ФИНАЛ -->
+  <section class="screen" id="screenFinal">
+    <h1>🏆 ИГРА ОКОНЧЕНА</h1>
+    <div class="card">
+      <div class="players-list" id="finalPlayers"></div>
+      <button class="btn btn-gold" id="btnRestart" style="width:100%;margin-top:16px;">🔄 В лобби</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let currentRoomId = null;
+let myId = null;
+let isHost = false;
+let currentQuestionData = null;
+let hasAnswered = false;
+
+const $ = id => document.getElementById(id);
+const screens = ['screenEntry','screenLobby','screenGame','screenResults','screenFinal'];
+function showScreen(id) {
+  screens.forEach(s => $(' + s + ').classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+// ---- ВХОД ----
+$('btnCreate').onclick = () => {
+  const name = $('playerName').value.trim() || 'Игрок';
+  socket.emit('createRoom', { playerName: name }, (res) => {
+    if (res.ok) { currentRoomId = res.roomId; myId = socket.id; }
+  });
+};
+$('btnJoinShow').onclick = () => $('joinBlock').classList.toggle('hidden');
+$('btnJoin').onclick = () => {
+  const name = $('playerName').value.trim() || 'Игрок';
+  const code = $('roomCodeInput').value.trim().toUpperCase();
+  if (!code) return alert('Введите код');
+  socket.emit('joinRoom', { roomId: code, playerName: name }, (res) => {
+    if (res.ok) { currentRoomId = code; myId = socket.id; }
+    else alert(res.error);
+  });
+};
+
+// ---- ОБНОВЛЕНИЕ ЛОББИ ----
+socket.on('roomUpdate', (data) => {
+  if (!data) return;
+  isHost = data.hostSocketId === socket.id;
+  currentRoomId = data.id;
+  showScreen('screenLobby');
+  $('lobbyRoomCode').textContent = data.id;
+  $('playerCount').textContent = data.players.length + ' / ' + data.maxPlayers;
+  $('lobbyPlayers').innerHTML = data.players.map(p =>
+    `<div class="player-item"><span>${p.name} ${p.id === socket.id ? '(вы)' : ''}</span><span class="player-score">${p.score}</span></div>`
+  ).join('');
+  $('hostControls').classList.toggle('hidden', !isHost);
+  $('waitingMsg').classList.toggle('hidden', isHost);
+  $('maxPlayersSelect').value = data.maxPlayers;
+  $('packStatus').textContent = data.hasPack ? '✅ Пак: ' + data.packName : 'Пак не загружен';
+});
+
+socket.on('errorMsg', msg => alert(msg));
+
+// ---- ХОСТ: настройки ----
+$('maxPlayersSelect').onchange = () => socket.emit('setMaxPlayers', { maxPlayers: +$('maxPlayersSelect').value });
+
+// Загрузка пака из файла
+$('packFile').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const pack = JSON.parse(ev.target.result);
+      socket.emit('loadPack', { pack });
+    } catch (err) { alert('Ошибка JSON: ' + err.message); }
+  };
+  reader.readAsText(file);
+};
+
+// Загрузка пака с URL
+$('btnLoadUrl').onclick = async () => {
+  const url = $('packUrl').value.trim();
+  if (!url) return alert('Введите URL');
+  try {
+    const res = await fetch(url);
+    const pack = await res.json();
+    socket.emit('loadPack', { pack });
+  } catch (err) { alert('Не удалось загрузить: ' + err.message); }
+};
+
+$('btnStart').onclick = () => socket.emit('startGame');
+
+// ---- ИГРА ----
+socket.on('gameStarted', () => showScreen('screenGame'));
+
+socket.on('newQuestion', (data) => {
+  showScreen('screenGame');
+  currentQuestionData = data;
+  hasAnswered = false;
+  $('gameQuestion').textContent = data.question;
+  $('gameCategory').textContent = data.category;
+  $('gameRound').textContent = data.round;
+  $('gamePrice').textContent = data.price + ' очков';
+  $('gameAnswer').value = '';
+  $('gameAnswer').disabled = false;
+  $('btnSubmitAnswer').disabled = false;
+  $('answerStatus').textContent = 'Введите ответ и нажмите «Ответить»';
+});
+
+socket.on('answerProgress', ({ answeredCount, total }) => {
+  $('answerStatus').textContent = `Ответили: ${answeredCount} / ${total}`;
+});
+
+$('btnSubmitAnswer').onclick = () => {
+  if (hasAnswered || !currentQuestionData) return;
+  const answer = $('gameAnswer').value.trim();
+  if (!answer) return alert('Введите ответ');
+  hasAnswered = true;
+  $('gameAnswer').disabled = true;
+  $('btnSubmitAnswer').disabled = true;
+  $('answerStatus').textContent = 'Ответ отправлен. Ожидание других...';
+  socket.emit('submitAnswer', { answer });
+};
+
+// Результаты
+socket.on('answerResults', (data) => {
+  showScreen('screenResults');
+  $('correctAnswerText').textContent = data.correctAnswer;
+  $('resultsTable').innerHTML = data.results.map(r =>
+    `<div class="result-row ${r.correct ? 'correct' : 'wrong'}">
+      <span>${r.correct ? '✅' : '❌'} ${r.name}: «${r.answer}»</span>
+      <span>${r.score > 0 ? '+' : ''}${r.correct ? '+' + data.price : (r.answer === '(нет ответа)' ? '0' : '-' + data.price)}</span>
+    </div>`
+  ).join('');
+  // Обновляем счёт в игре
+  updateGamePlayers(data.results);
+});
+
+function updateGamePlayers(results) {
+  const el = $('gamePlayers');
+  if (!el) return;
+  el.innerHTML = results.map(r =>
+    `<div class="player-item"><span>${r.name}</span><span class="player-score">${r.score}</span></div>`
+  ).join('');
+}
+
+socket.on('newRound', ({ roundIdx }) => {
+  $('gameRound').textContent = roundIdx + 1;
+});
+
+// Финал
+socket.on('gameFinished', (scores) => {
+  showScreen('screenFinal');
+  $('finalPlayers').innerHTML = scores.map((s, i) =>
+    `<div class="player-item"><span>${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.'} ${s.name}</span><span class="player-score">${s.score}</span></div>`
+  ).join('');
+});
+
+$('btnRestart').onclick = () => location.reload();
+
+// Инициализация
+myId = socket.id;
+</script>
+</body>
+</html>
